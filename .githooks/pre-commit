@@ -1,0 +1,68 @@
+#!/bin/sh
+#
+# pre-commit hook: refuse to commit secrets or personal information.
+#
+# Enable once per clone:
+#   git config core.hooksPath .githooks
+#
+# Bypass for a single commit (only when you are sure):
+#   git commit --no-verify
+#
+# Two layers:
+#   1. A dependency-free scan of the staged index for secrets and personal data
+#      (the same categories AGENTS.md forbids: paths, emails, keys, tokens).
+#   2. A gitleaks pass, when .tools/gitleaks (see scripts/install-gitleaks.sh)
+#      or a gitleaks on PATH is available.
+
+set -u
+
+# Lines containing any of these are treated as intentional placeholders/public
+# values and are ignored.
+ALLOW='example\.(com|org|net)|users\.noreply\.github\.com|noreply@|<[A-Za-z0-9_-]+>|your-'
+
+scan() {
+  hits=$(git grep --cached -nI -E -e "$1" -- . 2>/dev/null | grep -vE "$ALLOW" || true)
+  [ -n "$hits" ] && printf '[%s]\n%s\n\n' "$2" "$hits"
+}
+
+findings=$(
+  scan '-----BEGIN [A-Z ]*PRIVATE KEY-----' 'private key'
+  scan '(/home|/Users)/[A-Za-z0-9._-]+/'  'absolute user path (POSIX)'
+  scan 'C:\\+Users\\+[A-Za-z0-9._-]+'     'absolute user path (Windows)'
+  scan 'AKIA[0-9A-Z]{16}'                 'AWS access key id'
+  scan 'gh[pousr]_[A-Za-z0-9]{36,}'       'GitHub token'
+  scan 'github_pat_[A-Za-z0-9_]{60,}'     'GitHub fine-grained token'
+  scan 'sk-[A-Za-z0-9]{20,}'              'API secret key'
+  scan 'xox[baprs]-[A-Za-z0-9-]+'         'Slack token'
+  scan 'AIza[0-9A-Za-z_-]{35}'            'Google API key'
+  scan '[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}' 'email address'
+)
+
+if [ -n "$findings" ]; then
+  printf 'pre-commit: possible secrets or personal information in staged files:\n\n%s\n' "$findings"
+  printf 'Remove or redact the findings, or bypass once with: git commit --no-verify\n'
+  exit 1
+fi
+
+gitleaks=''
+local_gitleaks="$(git rev-parse --show-toplevel 2>/dev/null || true)/.tools/gitleaks"
+if [ -x "$local_gitleaks" ]; then
+  gitleaks=$local_gitleaks
+elif command -v gitleaks >/dev/null 2>&1; then
+  gitleaks=gitleaks
+fi
+
+if [ -n "$gitleaks" ]; then
+  if "$gitleaks" git --help >/dev/null 2>&1; then
+    "$gitleaks" git --staged --redact --no-banner
+  else
+    "$gitleaks" protect --staged --redact --no-banner
+  fi
+  rc=$?
+  if [ "$rc" -eq 1 ]; then
+    printf 'pre-commit: gitleaks found secrets in staged files.\n'
+    exit 1
+  elif [ "$rc" -ne 0 ]; then
+    printf 'pre-commit: gitleaks skipped (exit %s).\n' "$rc" >&2
+  fi
+fi

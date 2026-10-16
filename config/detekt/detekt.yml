@@ -1,0 +1,34 @@
+# Target: detekt 1.23.8. Deliberately selected convention rules only.
+# Use with buildUponDefaultConfig = false and allRules = false.
+build:
+  maxIssues: 0
+
+config:
+  validation: true
+  warningsAsErrors: true
+
+naming:
+  active: true
+  ClassNaming:
+    active: true
+  ConstructorParameterNaming:
+    active: true
+  FunctionNaming:
+    active: true
+    ignoreAnnotated:
+      - Composable
+  FunctionParameterNaming:
+    active: true
+  MatchingDeclarationName:
+    active: true
+  PackageNaming:
+    active: true
+  VariableNaming:
+    active: true
+
+style:
+  active: true
+  BracesOnIfStatements:
+    active: true
+    singleLine: always
+    multiLine: always

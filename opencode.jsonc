@@ -1,0 +1,84 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+
+  // Project configuration for the quote app.
+  //
+  // The agent harness lives in `.opencode/` (agents, commands, skills) and is
+  // discovered natively by OpenCode. See `.opencode/README.md` and `AGENTS.md`.
+
+  "watcher": {
+    "ignore": ["build/**", ".gradle/**", ".idea/**", "**/*.apk", "**/*.aab"],
+  },
+
+  // No formatter is configured yet (ktlint/spotless land with the Gradle build).
+  // Enabling it now could rewrite the spec Markdown.
+  "formatter": false,
+
+  // Named context the agent can pull in. Specs are the binding contract.
+  "references": {
+    "specs": {
+      "path": "specs",
+      "description": "The binding contract for the quote app.",
+    },
+  },
+
+  // Ordered permission rules; the last matching rule wins. Built-in defaults
+  // allow everything, so the rules below add the guardrails `AGENTS.md` describes.
+  "permissions": [
+    // --- Protected files: never changed without an explicit user confirmation ---
+    { "action": "edit", "resource": "AGENTS.md", "effect": "ask" },
+    { "action": "edit", "resource": "specs/**", "effect": "ask" },
+    { "action": "edit", "resource": ".opencode/**", "effect": "ask" },
+
+    // --- Anything outside the project ---
+    { "action": "external_directory", "resource": "*", "effect": "ask" },
+
+    // --- Secrets: never read or write ---
+    { "action": "read", "resource": "*.env", "effect": "deny" },
+    { "action": "read", "resource": "*.env.*", "effect": "deny" },
+    { "action": "read", "resource": "*.jks", "effect": "deny" },
+    { "action": "read", "resource": "*.keystore", "effect": "deny" },
+    { "action": "read", "resource": "*.p12", "effect": "deny" },
+    { "action": "read", "resource": "*.pem", "effect": "deny" },
+    { "action": "read", "resource": "*.key", "effect": "deny" },
+    { "action": "read", "resource": "id_rsa*", "effect": "deny" },
+    { "action": "edit", "resource": "*.env", "effect": "deny" },
+    { "action": "edit", "resource": "*.env.*", "effect": "deny" },
+    { "action": "edit", "resource": "*.jks", "effect": "deny" },
+    { "action": "edit", "resource": "*.keystore", "effect": "deny" },
+    { "action": "edit", "resource": "keystore.properties", "effect": "deny" },
+    { "action": "edit", "resource": "signing.properties", "effect": "deny" },
+
+    // --- Destructive shell commands ---
+    { "action": "shell", "resource": "rm -r*", "effect": "ask" },
+    { "action": "shell", "resource": "git reset --hard*", "effect": "ask" },
+    { "action": "shell", "resource": "git clean*", "effect": "ask" },
+    { "action": "shell", "resource": "git checkout -- *", "effect": "ask" },
+    { "action": "shell", "resource": "git restore*", "effect": "ask" },
+    { "action": "shell", "resource": "git rebase*", "effect": "ask" },
+    { "action": "shell", "resource": "chmod*", "effect": "ask" },
+    { "action": "shell", "resource": "dd *", "effect": "ask" },
+    { "action": "shell", "resource": "curl *|*sh", "effect": "ask" },
+    { "action": "shell", "resource": "wget *|*sh", "effect": "ask" },
+
+    // --- Git: ask before committing or pushing; deny history rewrites ---
+    { "action": "shell", "resource": "git commit*", "effect": "ask" },
+    { "action": "shell", "resource": "git push *", "effect": "ask" },
+    { "action": "shell", "resource": "git push --force*", "effect": "deny" },
+    { "action": "shell", "resource": "git filter-branch*", "effect": "deny" },
+  ],
+
+  // Hard denies that survive an "Allow always" approval.
+  "policies": [
+    { "action": "tool.use", "resource": "shell:git push --force*", "effect": "deny" },
+    { "action": "tool.use", "resource": "shell:git push -f*", "effect": "deny" },
+    { "action": "tool.use", "resource": "shell:git push --delete*", "effect": "deny" },
+    { "action": "tool.use", "resource": "shell:git filter-branch*", "effect": "deny" },
+    { "action": "tool.use", "resource": "shell:sudo*", "effect": "deny" },
+    { "action": "tool.use", "resource": "shell:mkfs*", "effect": "deny" },
+    { "action": "tool.use", "resource": "shell:dd *of=/dev/*", "effect": "deny" },
+    { "action": "tool.use", "resource": "shell:rm -rf /", "effect": "deny" },
+    { "action": "tool.use", "resource": "shell:rm -rf ~*", "effect": "deny" },
+    { "action": "tool.use", "resource": "shell:rm -rf $HOME*", "effect": "deny" },
+  ],
+}
